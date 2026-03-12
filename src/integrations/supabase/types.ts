@@ -14,16 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      books: {
+        Row: {
+          author: string
+          author_ar: string
+          category_id: string | null
+          cover_image: string | null
+          created_at: string
+          description: string
+          description_ar: string
+          download_count: number
+          featured: boolean
+          file_size: string | null
+          file_url: string | null
+          format: string
+          id: string
+          language: string
+          pages: number | null
+          title: string
+          title_ar: string
+          updated_at: string
+        }
+        Insert: {
+          author: string
+          author_ar: string
+          category_id?: string | null
+          cover_image?: string | null
+          created_at?: string
+          description?: string
+          description_ar?: string
+          download_count?: number
+          featured?: boolean
+          file_size?: string | null
+          file_url?: string | null
+          format?: string
+          id?: string
+          language?: string
+          pages?: number | null
+          title: string
+          title_ar: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string
+          author_ar?: string
+          category_id?: string | null
+          cover_image?: string | null
+          created_at?: string
+          description?: string
+          description_ar?: string
+          download_count?: number
+          featured?: boolean
+          file_size?: string | null
+          file_url?: string | null
+          format?: string
+          id?: string
+          language?: string
+          pages?: number | null
+          title?: string
+          title_ar?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "books_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          name_ar: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string
+          id?: string
+          name: string
+          name_ar: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          name_ar?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      increment_download_count: {
+        Args: { book_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +272,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
