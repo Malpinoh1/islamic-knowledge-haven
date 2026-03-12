@@ -1,18 +1,33 @@
 import { useParams, Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
-import { mockBooks } from '@/lib/mockData';
+import { useBook, useBooks, incrementDownload } from '@/lib/api';
 import BookCard from '@/components/BookCard';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, ArrowLeft, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
 const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { t, language } = useI18n();
 
-  const book = mockBooks.find((b) => b.id === id);
+  const { data: book, isLoading } = useBook(id || '');
+  const { data: allBooks = [] } = useBooks();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   if (!book) {
     return (
       <div className="min-h-screen bg-background">
@@ -20,10 +35,7 @@ const BookDetail = () => {
         <div className="container mx-auto px-4 py-20 text-center">
           <p className="text-muted-foreground">Book not found.</p>
           <Button asChild variant="outline" className="mt-4">
-            <Link to="/books">
-              <ArrowLeft className="me-2 h-4 w-4" />
-              {t('nav.books')}
-            </Link>
+            <Link to="/books"><ArrowLeft className="me-2 h-4 w-4" />{t('nav.books')}</Link>
           </Button>
         </div>
         <Footer />
@@ -31,20 +43,28 @@ const BookDetail = () => {
     );
   }
 
-  const title = language === 'ar' ? book.titleAr : book.title;
-  const author = language === 'ar' ? book.authorAr : book.author;
-  const description = language === 'ar' ? book.descriptionAr : book.description;
+  const title = language === 'ar' ? book.title_ar : book.title;
+  const author = language === 'ar' ? book.author_ar : book.author;
+  const description = language === 'ar' ? book.description_ar : book.description;
+  const categoryName = language === 'ar' ? book.categories?.name_ar : book.categories?.name;
 
-  const relatedBooks = mockBooks.filter((b) => b.category === book.category && b.id !== book.id).slice(0, 4);
+  const relatedBooks = allBooks.filter((b) => b.category_id === book.category_id && b.id !== book.id).slice(0, 4);
+
+  const handleDownload = async () => {
+    if (book.file_url) {
+      await incrementDownload(book.id);
+      window.open(book.file_url, '_blank');
+    } else {
+      toast.info('File not available yet.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
       <div className="container mx-auto px-4 py-8">
         <Link to="/books" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          {t('nav.books')}
+          <ArrowLeft className="h-4 w-4" />{t('nav.books')}
         </Link>
 
         <motion.div
@@ -53,37 +73,34 @@ const BookDetail = () => {
           transition={{ duration: 0.5 }}
           className="grid gap-8 md:grid-cols-[280px,1fr]"
         >
-          {/* Cover */}
           <div className="mx-auto w-full max-w-[280px]">
             <div className="aspect-[3/4] overflow-hidden rounded-xl bg-muted">
-              <div className="h-full gradient-emerald islamic-pattern flex flex-col items-center justify-center p-6">
-                <FileText className="h-14 w-14 text-primary-foreground/50 mb-3" />
-                <p className="text-center text-lg font-bold text-primary-foreground font-arabic leading-relaxed">
-                  {book.titleAr}
-                </p>
-                <p className="mt-2 text-sm text-primary-foreground/70 font-arabic">
-                  {book.authorAr}
-                </p>
-              </div>
+              {book.cover_image ? (
+                <img src={book.cover_image} alt={title} className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full gradient-emerald islamic-pattern flex flex-col items-center justify-center p-6">
+                  <FileText className="h-14 w-14 text-primary-foreground/50 mb-3" />
+                  <p className="text-center text-lg font-bold text-primary-foreground font-arabic leading-relaxed">{book.title_ar}</p>
+                  <p className="mt-2 text-sm text-primary-foreground/70 font-arabic">{book.author_ar}</p>
+                </div>
+              )}
             </div>
 
-            <Button className="mt-4 w-full gradient-gold text-accent-foreground font-semibold hover:opacity-90 border-0" size="lg">
-              <Download className="me-2 h-5 w-5" />
-              {t('book.download')} ({book.format})
+            <Button onClick={handleDownload} className="mt-4 w-full gradient-gold text-accent-foreground font-semibold hover:opacity-90 border-0" size="lg">
+              <Download className="me-2 h-5 w-5" />{t('book.download')} ({book.format})
             </Button>
           </div>
 
-          {/* Details */}
           <div>
             <h2 className="text-3xl font-bold text-foreground font-display">{title}</h2>
             <p className="mt-1 text-lg text-muted-foreground">{author}</p>
 
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { label: t('book.category'), value: t(`category.${book.category}`) },
+                { label: t('book.category'), value: categoryName || '—' },
                 { label: t('book.language'), value: book.language },
-                { label: t('book.pages'), value: book.pages.toLocaleString() },
-                { label: t('book.size'), value: book.fileSize },
+                { label: t('book.pages'), value: book.pages?.toLocaleString() || '—' },
+                { label: t('book.size'), value: book.file_size || '—' },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg border border-border bg-card p-3">
                   <p className="text-[10px] font-medium text-muted-foreground">{item.label}</p>
@@ -93,14 +110,8 @@ const BookDetail = () => {
             </div>
 
             <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Download className="h-4 w-4" />
-                {book.downloadCount.toLocaleString()} {t('book.downloads')}
-              </span>
-              <span className="flex items-center gap-1">
-                <BookOpen className="h-4 w-4" />
-                {book.format}
-              </span>
+              <span className="flex items-center gap-1"><Download className="h-4 w-4" />{book.download_count.toLocaleString()} {t('book.downloads')}</span>
+              <span className="flex items-center gap-1"><BookOpen className="h-4 w-4" />{book.format}</span>
             </div>
 
             <div className="mt-6">
@@ -110,7 +121,6 @@ const BookDetail = () => {
           </div>
         </motion.div>
 
-        {/* Related */}
         {relatedBooks.length > 0 && (
           <section className="mt-14">
             <h3 className="mb-6 text-2xl font-bold text-foreground font-display">{t('book.related')}</h3>
@@ -122,7 +132,6 @@ const BookDetail = () => {
           </section>
         )}
       </div>
-
       <Footer />
     </div>
   );

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
-import { mockBooks, categories } from '@/lib/mockData';
+import { useBooks, useCategories, DbBook } from '@/lib/api';
 import BookCard from '@/components/BookCard';
 import SearchBar from '@/components/SearchBar';
 import Header from '@/components/Header';
@@ -15,11 +15,13 @@ const Index = () => {
   const { t, language } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const featuredBooks = mockBooks.filter((b) => b.featured);
-  const latestBooks = [...mockBooks].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
-  const popularBooks = [...mockBooks].sort((a, b) => b.downloadCount - a.downloadCount).slice(0, 4);
+  const { data: allBooks = [] } = useBooks();
+  const { data: categories = [] } = useCategories();
+  const { data: featuredBooks = [] } = useBooks({ featured: true });
 
-  const totalDownloads = mockBooks.reduce((sum, b) => sum + b.downloadCount, 0);
+  const latestBooks = [...allBooks].slice(0, 4);
+  const popularBooks = [...allBooks].sort((a, b) => b.download_count - a.download_count).slice(0, 4);
+  const totalDownloads = allBooks.reduce((sum, b) => sum + b.download_count, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,7 +30,7 @@ const Index = () => {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <img src={heroPattern} alt="" className="h-full w-full object-cover" />
+          <img src={heroPattern} alt="" className="h-full w-full object-cover" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-b from-emerald-deep/90 via-primary/85 to-primary/95" />
         </div>
 
@@ -46,11 +48,7 @@ const Index = () => {
               {t('hero.subtitle')}
             </p>
 
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              className="mx-auto max-w-lg"
-            />
+            <SearchBar value={searchQuery} onChange={setSearchQuery} className="mx-auto max-w-lg" />
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Button asChild size="lg" className="gradient-gold text-accent-foreground font-semibold hover:opacity-90 border-0">
@@ -67,9 +65,9 @@ const Index = () => {
             className="mx-auto mt-12 grid max-w-md grid-cols-3 gap-4"
           >
             {[
-              { icon: BookOpen, value: mockBooks.length, label: language === 'ar' ? 'كتاب' : 'Books' },
+              { icon: BookOpen, value: allBooks.length, label: language === 'ar' ? 'كتاب' : 'Books' },
               { icon: Users, value: categories.length, label: language === 'ar' ? 'أقسام' : 'Categories' },
-              { icon: Download, value: `${(totalDownloads / 1000).toFixed(0)}K`, label: language === 'ar' ? 'تحميل' : 'Downloads' },
+              { icon: Download, value: totalDownloads > 1000 ? `${(totalDownloads / 1000).toFixed(0)}K` : totalDownloads, label: language === 'ar' ? 'تحميل' : 'Downloads' },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <stat.icon className="mx-auto mb-1 h-5 w-5 text-gold" />
@@ -93,12 +91,12 @@ const Index = () => {
               transition={{ duration: 0.3, delay: i * 0.05 }}
             >
               <Link
-                to={`/books?category=${cat.id}`}
+                to={`/books?category=${cat.name}`}
                 className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md hover:shadow-primary/5"
               >
                 <span className="text-2xl">{cat.icon}</span>
                 <span className="text-xs font-medium text-foreground text-center">
-                  {t(cat.key)}
+                  {language === 'ar' ? cat.name_ar : cat.name}
                 </span>
               </Link>
             </motion.div>
@@ -106,52 +104,58 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Featured Books */}
-      <section className="container mx-auto px-4 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-2xl font-bold text-foreground font-display">{t('section.featured')}</h3>
-          <Link to="/books" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-            {t('nav.books')} <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {featuredBooks.map((book, i) => (
-            <BookCard key={book.id} book={book} index={i} />
-          ))}
-        </div>
-      </section>
+      {/* Featured */}
+      {featuredBooks.length > 0 && (
+        <section className="container mx-auto px-4 py-10">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="text-2xl font-bold text-foreground font-display">{t('section.featured')}</h3>
+            <Link to="/books" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              {t('nav.books')} <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {featuredBooks.map((book, i) => (
+              <BookCard key={book.id} book={book} index={i} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Popular */}
-      <section className="bg-muted/50 islamic-pattern">
-        <div className="container mx-auto px-4 py-14">
+      {popularBooks.length > 0 && (
+        <section className="bg-muted/50 islamic-pattern">
+          <div className="container mx-auto px-4 py-14">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-foreground font-display">{t('section.popular')}</h3>
+              <Link to="/books" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                {t('nav.books')} <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {popularBooks.map((book, i) => (
+                <BookCard key={book.id} book={book} index={i} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Latest */}
+      {latestBooks.length > 0 && (
+        <section className="container mx-auto px-4 py-14">
           <div className="mb-6 flex items-center justify-between">
-            <h3 className="text-2xl font-bold text-foreground font-display">{t('section.popular')}</h3>
+            <h3 className="text-2xl font-bold text-foreground font-display">{t('section.latest')}</h3>
             <Link to="/books" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
               {t('nav.books')} <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {popularBooks.map((book, i) => (
+            {latestBooks.map((book, i) => (
               <BookCard key={book.id} book={book} index={i} />
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Latest */}
-      <section className="container mx-auto px-4 py-14">
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-2xl font-bold text-foreground font-display">{t('section.latest')}</h3>
-          <Link to="/books" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-            {t('nav.books')} <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {latestBooks.map((book, i) => (
-            <BookCard key={book.id} book={book} index={i} />
-          ))}
-        </div>
-      </section>
+        </section>
+      )}
 
       <Footer />
     </div>
