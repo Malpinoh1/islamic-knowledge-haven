@@ -12,6 +12,7 @@ const Header = () => {
     { to: '/', label: t('nav.home') },
     { to: '/books', label: t('nav.books') },
     { to: '/categories', label: t('nav.categories') },
+    { to: '/request-book', label: t('nav.requestBook') },
   ];
 
   return (

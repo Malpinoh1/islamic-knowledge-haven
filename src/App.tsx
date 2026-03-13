@@ -9,6 +9,8 @@ import Index from "./pages/Index.tsx";
 import Books from "./pages/Books.tsx";
 import BookDetail from "./pages/BookDetail.tsx";
 import Categories from "./pages/Categories.tsx";
+import BookRequest from "./pages/BookRequest.tsx";
+import AuthorDetail from "./pages/AuthorDetail.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -28,6 +30,8 @@ const App = () => (
               <Route path="/books" element={<Books />} />
               <Route path="/book/:id" element={<BookDetail />} />
               <Route path="/categories" element={<Categories />} />
+              <Route path="/request-book" element={<BookRequest />} />
+              <Route path="/author/:id" element={<AuthorDetail />} />
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="*" element={<NotFound />} />

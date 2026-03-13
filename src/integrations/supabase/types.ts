@@ -14,10 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_activity_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      authors: {
+        Row: {
+          bio: string
+          bio_ar: string
+          created_at: string
+          id: string
+          name: string
+          name_ar: string
+          photo_url: string | null
+        }
+        Insert: {
+          bio?: string
+          bio_ar?: string
+          created_at?: string
+          id?: string
+          name: string
+          name_ar: string
+          photo_url?: string | null
+        }
+        Update: {
+          bio?: string
+          bio_ar?: string
+          created_at?: string
+          id?: string
+          name?: string
+          name_ar?: string
+          photo_url?: string | null
+        }
+        Relationships: []
+      }
+      book_requests: {
+        Row: {
+          author_name: string
+          book_title: string
+          created_at: string
+          id: string
+          notes: string
+          requester_email: string
+          requester_name: string
+          status: string
+        }
+        Insert: {
+          author_name?: string
+          book_title: string
+          created_at?: string
+          id?: string
+          notes?: string
+          requester_email?: string
+          requester_name?: string
+          status?: string
+        }
+        Update: {
+          author_name?: string
+          book_title?: string
+          created_at?: string
+          id?: string
+          notes?: string
+          requester_email?: string
+          requester_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           author: string
           author_ar: string
+          author_id: string | null
           category_id: string | null
           cover_image: string | null
           created_at: string
@@ -38,6 +132,7 @@ export type Database = {
         Insert: {
           author: string
           author_ar: string
+          author_id?: string | null
           category_id?: string | null
           cover_image?: string | null
           created_at?: string
@@ -58,6 +153,7 @@ export type Database = {
         Update: {
           author?: string
           author_ar?: string
+          author_id?: string | null
           category_id?: string | null
           cover_image?: string | null
           created_at?: string
@@ -76,6 +172,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "books_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "books_category_id_fkey"
             columns: ["category_id"]
