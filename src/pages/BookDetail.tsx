@@ -1,17 +1,20 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { useBook, useBooks, incrementDownload } from '@/lib/api';
 import BookCard from '@/components/BookCard';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import PdfReader from '@/components/PdfReader';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, ArrowLeft, BookOpen } from 'lucide-react';
+import { Download, FileText, ArrowLeft, BookOpen, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { t, language } = useI18n();
+  const [showReader, setShowReader] = useState(false);
 
   const { data: book, isLoading } = useBook(id || '');
   const { data: allBooks = [] } = useBooks();
@@ -47,8 +50,12 @@ const BookDetail = () => {
   const author = language === 'ar' ? book.author_ar : book.author;
   const description = language === 'ar' ? book.description_ar : book.description;
   const categoryName = language === 'ar' ? book.categories?.name_ar : book.categories?.name;
+  const authorName = language === 'ar' ? book.authors?.name_ar : book.authors?.name;
 
-  const relatedBooks = allBooks.filter((b) => b.category_id === book.category_id && b.id !== book.id).slice(0, 4);
+  // Related books: same category or same author, excluding current book
+  const relatedBooks = allBooks
+    .filter((b) => b.id !== book.id && (b.category_id === book.category_id || (book.author_id && b.author_id === book.author_id)))
+    .slice(0, 4);
 
   const handleDownload = async () => {
     if (book.file_url) {
@@ -59,9 +66,30 @@ const BookDetail = () => {
     }
   };
 
+  const canReadOnline = book.file_url && book.format.includes('PDF');
+
+  // JSON-LD structured data for this book
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Book',
+    name: title,
+    author: { '@type': 'Person', name: author },
+    description,
+    bookFormat: book.format === 'PDF' ? 'EBook' : 'EBook',
+    numberOfPages: book.pages,
+    inLanguage: book.language === 'Arabic' ? 'ar' : 'en',
+    ...(book.cover_image && { image: book.cover_image }),
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
+      {showReader && book.file_url && (
+        <PdfReader fileUrl={book.file_url} title={title} onClose={() => setShowReader(false)} />
+      )}
+
       <div className="container mx-auto px-4 py-8">
         <Link to="/books" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors">
           <ArrowLeft className="h-4 w-4" />{t('nav.books')}
@@ -76,7 +104,7 @@ const BookDetail = () => {
           <div className="mx-auto w-full max-w-[280px]">
             <div className="aspect-[3/4] overflow-hidden rounded-xl bg-muted">
               {book.cover_image ? (
-                <img src={book.cover_image} alt={title} className="h-full w-full object-cover" />
+                <img src={book.cover_image} alt={title} className="h-full w-full object-cover" loading="lazy" />
               ) : (
                 <div className="h-full gradient-emerald islamic-pattern flex flex-col items-center justify-center p-6">
                   <FileText className="h-14 w-14 text-primary-foreground/50 mb-3" />
@@ -86,14 +114,27 @@ const BookDetail = () => {
               )}
             </div>
 
-            <Button onClick={handleDownload} className="mt-4 w-full gradient-gold text-accent-foreground font-semibold hover:opacity-90 border-0" size="lg">
-              <Download className="me-2 h-5 w-5" />{t('book.download')} ({book.format})
-            </Button>
+            <div className="mt-4 flex flex-col gap-2">
+              <Button onClick={handleDownload} className="w-full gradient-gold text-accent-foreground font-semibold hover:opacity-90 border-0" size="lg">
+                <Download className="me-2 h-5 w-5" />{t('book.download')} ({book.format})
+              </Button>
+              {canReadOnline && (
+                <Button onClick={() => setShowReader(true)} variant="outline" className="w-full" size="lg">
+                  <Eye className="me-2 h-5 w-5" />{t('book.readOnline')}
+                </Button>
+              )}
+            </div>
           </div>
 
           <div>
             <h2 className="text-3xl font-bold text-foreground font-display">{title}</h2>
-            <p className="mt-1 text-lg text-muted-foreground">{author}</p>
+            {book.author_id && authorName ? (
+              <Link to={`/author/${book.author_id}`} className="mt-1 text-lg text-primary hover:underline block">
+                {authorName}
+              </Link>
+            ) : (
+              <p className="mt-1 text-lg text-muted-foreground">{author}</p>
+            )}
 
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
