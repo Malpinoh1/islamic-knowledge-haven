@@ -44,7 +44,7 @@ const BookRequest = () => {
     }
     setSubmitting(true);
     try {
-      await submitBookRequest(parsed.data);
+      await submitBookRequest(parsed.data as { book_title: string; author_name: string; requester_name: string; requester_email: string; notes: string });
       toast.success(t('request.success'));
       setBookTitle(''); setAuthorName(''); setRequesterName(''); setRequesterEmail(''); setNotes('');
     } catch {
