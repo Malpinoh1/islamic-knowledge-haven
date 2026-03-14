@@ -174,20 +174,12 @@ const AdminDashboard = () => {
       };
 
       if (editingBook) {
-        const { error } = await withTimeout(
-          supabase.from('books').update(bookData).eq('id', editingBook.id),
-          30000,
-          'Saving book details timed out. Please try again.',
-        );
+        const { error } = await supabase.from('books').update(bookData).eq('id', editingBook.id);
         if (error) throw error;
         await logAdminActivity('update', 'book', editingBook.id, { title });
         toast.success('Book updated successfully');
       } else {
-        const { data: newBook, error } = await withTimeout(
-          supabase.from('books').insert(bookData).select().single(),
-          30000,
-          'Saving book details timed out. Please try again.',
-        );
+        const { data: newBook, error } = await supabase.from('books').insert(bookData).select().single();
         if (error) throw error;
         await logAdminActivity('create', 'book', newBook?.id, { title });
         toast.success('Book added successfully');
