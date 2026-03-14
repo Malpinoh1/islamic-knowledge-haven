@@ -120,7 +120,7 @@ const AdminDashboard = () => {
 
       const bookData = {
         title, title_ar: titleAr, author, author_ar: authorAr,
-        author_id: authorId || null,
+        author_id: (authorId && authorId !== 'none') ? authorId : null,
         category_id: categoryId || null, language, description,
         description_ar: descriptionAr, pages: pages ? parseInt(pages) : 0,
         format, featured, cover_image: coverUrl, file_url: fileUrl, file_size: fileSize,
