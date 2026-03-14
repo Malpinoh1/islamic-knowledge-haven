@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { LogOut, Plus, Pencil, Trash2, BookOpen, BarChart3, TrendingUp, Clock, MessageSquare } from 'lucide-react';
@@ -16,6 +17,16 @@ import Header from '@/components/Header';
 
 const ALLOWED_FILE_TYPES = ['application/pdf', 'application/epub+zip'];
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+type SubmitStage = 'idle' | 'validating' | 'uploading-cover' | 'uploading-book' | 'saving-record' | 'refreshing';
+
+const SUBMIT_STAGE_LABELS: Record<SubmitStage, string> = {
+  idle: 'Preparing...',
+  validating: 'Validating files...',
+  'uploading-cover': 'Uploading cover image...',
+  'uploading-book': 'Uploading book file...',
+  'saving-record': 'Saving book details...',
+  refreshing: 'Refreshing library data...',
+};
 
 const AdminDashboard = () => {
   const { user, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -30,6 +41,8 @@ const AdminDashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingBook, setEditingBook] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState<SubmitStage>('idle');
+  const [submitProgress, setSubmitProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<'books' | 'requests' | 'analytics' | 'activity'>('books');
 
   // Form state
@@ -65,6 +78,7 @@ const AdminDashboard = () => {
     setDescriptionAr(''); setPages(''); setFormat('PDF');
     setFeatured(false); setCoverFile(null); setBookFile(null);
     setEditingBook(null); setShowForm(false);
+    setSubmitStage('idle'); setSubmitProgress(0);
   };
 
   const editBook = (book: any) => {
@@ -84,8 +98,28 @@ const AdminDashboard = () => {
     return null;
   };
 
+  const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutId!);
+    }
+  };
+
+  const updateSubmitState = (stage: SubmitStage, progress: number) => {
+    setSubmitStage(stage);
+    setSubmitProgress(progress);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    updateSubmitState('validating', 10);
     if (coverFile) {
       const err = validateFile(coverFile, ALLOWED_IMAGE_TYPES, 5);
       if (err) { toast.error(err); return; }
@@ -94,6 +128,7 @@ const AdminDashboard = () => {
       const err = validateFile(bookFile, ALLOWED_FILE_TYPES, 100);
       if (err) { toast.error(err); return; }
     }
+
     setSubmitting(true);
     try {
       let coverUrl = editingBook?.cover_image || null;
@@ -101,23 +136,35 @@ const AdminDashboard = () => {
       let fileSize = editingBook?.file_size || null;
 
       if (coverFile) {
-        const ext = coverFile.name.split('.').pop();
-        const path = `${Date.now()}.${ext}`;
-        const { error } = await supabase.storage.from('book-covers').upload(path, coverFile);
+        updateSubmitState('uploading-cover', 35);
+        const ext = coverFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await withTimeout(
+          supabase.storage.from('book-covers').upload(path, coverFile, { cacheControl: '3600', upsert: false, contentType: coverFile.type }),
+          120000,
+          'Cover upload is taking too long. Please retry with a smaller image or faster connection.',
+        );
         if (error) throw error;
         const { data: urlData } = supabase.storage.from('book-covers').getPublicUrl(path);
         coverUrl = urlData.publicUrl;
       }
+
       if (bookFile) {
-        const ext = bookFile.name.split('.').pop();
-        const path = `${Date.now()}.${ext}`;
-        const { error } = await supabase.storage.from('book-files').upload(path, bookFile);
+        updateSubmitState('uploading-book', coverFile ? 60 : 40);
+        const ext = bookFile.name.split('.').pop()?.toLowerCase() || 'pdf';
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await withTimeout(
+          supabase.storage.from('book-files').upload(path, bookFile, { cacheControl: '3600', upsert: false, contentType: bookFile.type }),
+          300000,
+          'Book upload is taking too long. Please retry with a smaller file or better connection.',
+        );
         if (error) throw error;
         const { data: urlData } = supabase.storage.from('book-files').getPublicUrl(path);
         fileUrl = urlData.publicUrl;
         fileSize = `${(bookFile.size / (1024 * 1024)).toFixed(1)} MB`;
       }
 
+      updateSubmitState('saving-record', 90);
       const bookData = {
         title, title_ar: titleAr, author, author_ar: authorAr,
         author_id: (authorId && authorId !== 'none') ? authorId : null,
@@ -137,12 +184,17 @@ const AdminDashboard = () => {
         await logAdminActivity('create', 'book', newBook?.id, { title });
         toast.success('Book added successfully');
       }
-      resetForm(); fetchBooks();
+
+      updateSubmitState('refreshing', 100);
+      resetForm();
+      await fetchBooks();
       queryClient.invalidateQueries({ queryKey: ['books'] });
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Upload failed. Please try again.');
     } finally {
       setSubmitting(false);
+      setSubmitStage('idle');
+      setSubmitProgress(0);
     }
   };
 
@@ -299,9 +351,21 @@ const AdminDashboard = () => {
                     <Switch checked={featured} onCheckedChange={setFeatured} />
                     <Label>Featured Book</Label>
                   </div>
+
+                  {submitting && (
+                    <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-foreground">{SUBMIT_STAGE_LABELS[submitStage]}</span>
+                        <span className="text-muted-foreground">{submitProgress}%</span>
+                      </div>
+                      <Progress value={submitProgress} className="h-2" />
+                      <p className="text-xs text-muted-foreground">Please keep this page open while upload is in progress.</p>
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
-                    <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : editingBook ? 'Update Book' : 'Add Book'}</Button>
-                    <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                    <Button type="submit" disabled={submitting}>{submitting ? SUBMIT_STAGE_LABELS[submitStage] : editingBook ? 'Update Book' : 'Add Book'}</Button>
+                    <Button type="button" variant="outline" onClick={resetForm} disabled={submitting}>Cancel</Button>
                   </div>
                 </form>
               </div>
