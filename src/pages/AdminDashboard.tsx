@@ -353,9 +353,21 @@ const AdminDashboard = () => {
                     <Switch checked={featured} onCheckedChange={setFeatured} />
                     <Label>Featured Book</Label>
                   </div>
+
+                  {submitting && (
+                    <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-foreground">{SUBMIT_STAGE_LABELS[submitStage]}</span>
+                        <span className="text-muted-foreground">{submitProgress}%</span>
+                      </div>
+                      <Progress value={submitProgress} className="h-2" />
+                      <p className="text-xs text-muted-foreground">Please keep this page open while upload is in progress.</p>
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
-                    <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : editingBook ? 'Update Book' : 'Add Book'}</Button>
-                    <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                    <Button type="submit" disabled={submitting}>{submitting ? SUBMIT_STAGE_LABELS[submitStage] : editingBook ? 'Update Book' : 'Add Book'}</Button>
+                    <Button type="button" variant="outline" onClick={resetForm} disabled={submitting}>Cancel</Button>
                   </div>
                 </form>
               </div>
