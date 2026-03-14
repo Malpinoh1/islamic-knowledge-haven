@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { LogOut, Plus, Pencil, Trash2, BookOpen, BarChart3, TrendingUp, Clock, MessageSquare } from 'lucide-react';
