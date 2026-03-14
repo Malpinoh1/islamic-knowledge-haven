@@ -193,10 +193,8 @@ const AdminDashboard = () => {
       toast.error(err.message || 'Upload failed. Please try again.');
     } finally {
       setSubmitting(false);
-      if (submitStage !== 'idle') {
-        setSubmitStage('idle');
-        setSubmitProgress(0);
-      }
+      setSubmitStage('idle');
+      setSubmitProgress(0);
     }
   };
 
