@@ -58,7 +58,6 @@ const BookDetail = () => {
     .filter((b) => b.id !== book.id && (b.category_id === book.category_id || (book.author_id && b.author_id === book.author_id)))
     .slice(0, 4);
 
-  const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
     if (!book.file_url) {
