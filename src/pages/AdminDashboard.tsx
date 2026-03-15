@@ -164,10 +164,39 @@ const AdminDashboard = () => {
         fileSize = `${(bookFile.size / (1024 * 1024)).toFixed(1)} MB`;
       }
 
+      updateSubmitState('saving-record', 85);
+
+      // Auto-create author if no existing author selected but name is provided
+      let resolvedAuthorId: string | null = (authorId && authorId !== 'none') ? authorId : null;
+      if (!resolvedAuthorId && author.trim()) {
+        // Check if author already exists by name
+        const { data: existingAuthor } = await supabase
+          .from('authors')
+          .select('id')
+          .eq('name', author.trim())
+          .maybeSingle();
+
+        if (existingAuthor) {
+          resolvedAuthorId = existingAuthor.id;
+        } else {
+          const { data: newAuthor, error: authorError } = await supabase
+            .from('authors')
+            .insert({ name: author.trim(), name_ar: authorAr.trim() || author.trim(), bio: '', bio_ar: '' })
+            .select('id')
+            .single();
+          if (authorError) {
+            console.error('Failed to create author:', authorError);
+          } else {
+            resolvedAuthorId = newAuthor.id;
+            queryClient.invalidateQueries({ queryKey: ['authors'] });
+          }
+        }
+      }
+
       updateSubmitState('saving-record', 90);
       const bookData = {
         title, title_ar: titleAr, author, author_ar: authorAr,
-        author_id: (authorId && authorId !== 'none') ? authorId : null,
+        author_id: resolvedAuthorId,
         category_id: categoryId || null, language, description,
         description_ar: descriptionAr, pages: pages ? parseInt(pages) : 0,
         format, featured, cover_image: coverUrl, file_url: fileUrl, file_size: fileSize,
