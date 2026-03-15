@@ -175,8 +175,8 @@ const BookDetail = () => {
             </div>
 
             <div className="mt-4 flex flex-col gap-2">
-              <Button onClick={handleDownload} className="w-full gradient-gold text-accent-foreground font-semibold hover:opacity-90 border-0" size="lg">
-                <Download className="me-2 h-5 w-5" />{t('book.download')} ({book.format})
+              <Button onClick={handleDownload} disabled={downloading} className="w-full gradient-gold text-accent-foreground font-semibold hover:opacity-90 border-0" size="lg">
+                <Download className="me-2 h-5 w-5" />{downloading ? 'Downloading...' : `${t('book.download')} (${book.format})`}
               </Button>
               {canReadOnline && (
                 <Button onClick={() => setShowReader(true)} variant="outline" className="w-full" size="lg">
