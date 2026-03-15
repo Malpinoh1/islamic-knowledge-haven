@@ -57,12 +57,72 @@ const BookDetail = () => {
     .filter((b) => b.id !== book.id && (b.category_id === book.category_id || (book.author_id && b.author_id === book.author_id)))
     .slice(0, 4);
 
+  const [downloading, setDownloading] = useState(false);
+
   const handleDownload = async () => {
-    if (book.file_url) {
-      await incrementDownload(book.id);
-      window.open(book.file_url, '_blank');
-    } else {
+    if (!book.file_url) {
       toast.info('File not available yet.');
+      return;
+    }
+
+    setDownloading(true);
+    const toastId = toast.loading('Preparing download...');
+
+    try {
+      await incrementDownload(book.id);
+
+      const response = await fetch(book.file_url);
+      if (!response.ok) throw new Error('Download failed');
+
+      const contentLength = response.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      const reader = response.body?.getReader();
+
+      if (!reader) {
+        // Fallback: direct link
+        const a = document.createElement('a');
+        a.href = book.file_url;
+        a.download = `${title}.${book.format.toLowerCase()}`;
+        a.click();
+        toast.dismiss(toastId);
+        toast.success('Download started!');
+        setDownloading(false);
+        return;
+      }
+
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) {
+          const pct = Math.round((received / total) * 100);
+          toast.loading(`Downloading... ${pct}%`, { id: toastId });
+        }
+      }
+
+      const blob = new Blob(chunks);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title}.${book.format.toLowerCase()}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.dismiss(toastId);
+      toast.success('Download complete!');
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      // Fallback to direct open
+      window.open(book.file_url, '_blank');
+      toast.info('Download started in new tab.');
+    } finally {
+      setDownloading(false);
     }
   };
 
