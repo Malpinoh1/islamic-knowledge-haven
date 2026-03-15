@@ -15,6 +15,7 @@ const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { t, language } = useI18n();
   const [showReader, setShowReader] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const { data: book, isLoading } = useBook(id || '');
   const { data: allBooks = [] } = useBooks();
